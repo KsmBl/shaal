@@ -2,6 +2,7 @@
 
 from os.path import expanduser
 import subprocess
+import signal
 import sys
 import os
 
@@ -19,10 +20,26 @@ def main():
 		sys.exit(1)
 
 	if argv[1] == "start":
-		print("TODO")
+		killHTTPServers()
+		pid = os.fork()
+		if pid > 0:
+			print("python HTTP server started")
+			sys.exit(0)
+		else:
+			homeDir = expanduser("~")
+			fullPath = os.path.join(homeDir, ".shaal")
+
+			result = subprocess.run(
+				['python3', '-m', 'http.server', '-d', fullPath],
+				capture_output=True,
+				text=True,
+				check=True,
+				stderr=subprocess.DEVNULL
+			)
 
 	if argv[1] == "stop":
-		print("TODO")
+		killHTTPServers()
+		sys.exit(0)
 
 	if argv[1] == "add":
 		if not len(argv) == 3:
@@ -65,5 +82,24 @@ def createShallDir():
 		print("~/.shaal/ created. Here will land your symlinks to all files and directorys you wanna share")
 	except FileExistsError:
 		pass
+
+
+def killHTTPServers():
+	command = ["pgrep", "-f", "python.*-m http.server -d /home/"]
+
+	try:
+		result = subprocess.run(command, 
+			capture_output=True, 
+			text=True, 
+		check=True)
+
+		PIDs = result.stdout.strip().split('\n')
+		PIDs = [int(pid) for pid in PIDs]
+	except:
+		PIDs = []
+
+	for pid in PIDs:
+		os.kill(pid, 9)
+		print("old HTTP Server terminated")
 
 main()
